@@ -1,2 +1,37 @@
-請運用DHT22及wifi模組，運用Blynk，在手機上顯示溫度、濕度(運用Gauge元件及SuperChart元件)，及控制Led亮暗(Button元件)，以上功能需正常運作。
-完成期限：108年12月15日
+/*  Lab9 DHT22 程式碼*/
+
+/* DHT22 接線方式
+GND --> GND
+VCC --> 5V
+DAT --> pin2
+*/
+
+#include "DHT.h"        // 匯入DHT函式庫
+#define DHTPIN 2        // 定義DHT函式庫中，所使用的訊號來源
+#define DHTTYPE DHT22   // 定義DHT函式庫中，所使用的感測器
+DHT dht(DHTPIN, DHTTYPE);
+
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println("DHTxx test!");
+/*設定序列埠監控視窗，並輸出文字*/
+  dht.begin();
+}
+
+void loop() {
+
+  delay(2000);                         // 每次測量間隔
+
+  //每次讀取溫度或濕度大約會花 250 milliseconds
+  float dhtT = dht.readTemperature();    //設定浮點變數dhtT，讀取溫度
+  float dhtH = dht.readHumidity();       //設定浮點變數dhtH，讀取濕度
+
+  Serial.print("Temperature: ");        //序列埠監控視窗印出文字
+  Serial.print(dhtT);                   //序列埠監控視窗印出dhtT數值
+  Serial.print(" *C ");
+  Serial.print("Humidity: ");
+  Serial.print();                 //序列埠監控視窗印出dhtH數值
+  Serial.println(" % ");
+
+}
