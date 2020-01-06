@@ -1,5 +1,5 @@
 /*
-  SD card read/write
+  SD card read/write      //
 
  This example shows how to read and write data to and from an SD card file
  The circuit:
@@ -15,63 +15,132 @@
  by Tom Igoe
 
  This example code is in the public domain.
+*/
 
- */
+/*  Lab9 DHT22 程式碼*/
+/* DHT22 接線方式
+GND --> GND
+VCC --> 5V
+DAT --> pin2
+*/
+
+/* RTC時鐘接線方式
+GND --> GND
+VCC --> 5V
+CLK --> pin7
+DAT --> pin6
+RST --> pin5  
+*/
+
+#include <stdio.h>      //匯入DS1302函式庫
+#include <DS1302.h>
 
 #include <SPI.h>
 #include <SD.h>
 
-File myFile;               //宣告物件 myFile
+#include "DHT.h"        // 匯入DHT函式庫
+#define DHTPIN 2        // 定義DHT函式庫中，所使用的訊號來源
+#define DHTTYPE DHT22   // 定義DHT函式庫中，所使用的感測器
+DHT dht(DHTPIN, DHTTYPE);
+
+File myF;               //宣告物件 myFile
+int i=0;
+
+namespace {
+
+const int kCePin   = 5;  // Chip Enable
+const int kIoPin   = 6;  // Input/Output
+const int kSclkPin = 7;  // Serial Clock
+
+////Create a DS1302 object.
+DS1302 rtc(kCePin, kIoPin, kSclkPin);
+
+String dayAsString(const Time::Day day) {
+  switch (day) {
+    case Time::kSunday: return "Sunday";
+    case Time::kMonday: return "Monday";
+    case Time::kTuesday: return "Tuesday";
+    case Time::kWednesday: return "Wednesday";
+    case Time::kThursday: return "Thursday";
+    case Time::kFriday: return "Friday";
+    case Time::kSaturday: return "Saturday";
+  }
+  return "(unknown day)";
+}
+
+void printTime() {
+  // Get the current time and date from the chip.
+  Time t = rtc.time();          //此行為重要的時間變數宣告及設定，可嘗試複製移到其他位置
+
+  // Name the day of the week.
+  const String day = dayAsString(t.day);
+
+  // Format the time and date and insert into the temporary buffer.
+  char buf[50];
+  snprintf(buf, sizeof(buf), "%s %04d-%02d-%02d %02d:%02d:%02d",
+           day.c_str(),
+           t.yr, t.mon, t.date,
+           t.hr, t.min, t.sec);  //請留意此段t.hr等用法
+
+  // Print the formatted string to serial so we can see the time.
+  Serial.println(buf);
+}
+
+}  // namespace
 
 void setup() {
   // Open serial communications and wait for port to open:
+  
   Serial.begin(9600);
+  Serial.print("DHTxx test!");    /*設定序列埠監控視窗，並輸出文字*/
+  dht.begin();
+
+  rtc.writeProtect(false);
+  rtc.halt(false);
+  Time t(2020, 1, 5, 00, 00, 00, Time::kSunday); 
+  rtc.time(t); //此行為一開始設定用，設定好後可加//不用再執行   
+  
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
-  }
-
-
-  Serial.print("Initializing SD card...");
-
-  if (!SD.begin(4)) {
-    Serial.println("initialization failed!");
-    while (1);
-  }
-  Serial.println("initialization done.");
-
-  // open the file. note that only one file can be open at a time,
-  // so you have to close this one before opening another.
-  myFile = SD.open("test.txt", FILE_WRITE);
-
-  // if the file opened okay, write to it:
-  if (myFile) {
-    Serial.print("Writing to test.txt...");
-    myFile.println("testing 1, 2, 3.");    //將testing 1,2,3寫入記憶卡內的test.txt
-    // close the file:  
-    myFile.close();
-    Serial.println("done.");
-  } else {
-    // if the file didn't open, print an error:
-    Serial.println("error opening test.txt");
-  }
-
-  // re-open the file for reading:
-  myFile = SD.open("test.txt");
-  if (myFile) {
-    Serial.println("test.txt:");
-
-    // read from the file until there's nothing else in it:
-    while (myFile.available()) {
-      Serial.write(myFile.read());
-    }
-    // close the file:
-    myFile.close();
-  } else {
-    // if the file didn't open, print an error:
-    Serial.println("error opening test.txt");
   }
 }
 
 void loop() {
-  // nothing happens after setup
-}
+
+  
+  printTime();
+  
+  delay(5000);                        // 每次測量間隔
+
+  //每次讀取溫度或濕度大約會花 250 milliseconds
+  float dhtT = dht.readTemperature();    //設定浮點變數dhtT，讀取溫度
+  float dhtH = dht.readHumidity();       //設定浮點變數dhtH，讀取濕度
+
+  Serial.print("Temperature: ");        //序列埠監控視窗印出文字
+  Serial.print(dhtT);                   //序列埠監控視窗印出dhtT數值
+  Serial.print(" *C ");
+  Serial.print("Humidity: ");
+  Serial.print(dhtH);                 //序列埠監控視窗印出dhtH數值
+  Serial.println(" % ");
+  
+  if (!SD.begin(4)) {
+
+    while (1);
+  }
+  
+
+  // open the file. note that only one file can be open at a time,
+  // so you have to close this one before opening another.
+  myF = SD.open("clock.txt", FILE_WRITE);
+
+  // if the file opened okay, write to it:
+  if (myF) {
+
+    myF.print(dhtT);
+    myF.print(",");
+    myF.println("clock");
+    i++;
+    // close the file:
+    myF.flush();
+   
+  } else {
